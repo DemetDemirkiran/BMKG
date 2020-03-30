@@ -1,0 +1,184 @@
+@prefix rr: <http://www.w3.org/ns/r2rml#> .                     # R2RML ontology prefix
+@prefix dc: <http://purl.org/dc/elements/1.1/> .                # Dublin core terms namespace prefix
+@prefix dbo: <http://dbpedia.org/ontology/> .                   # DBpedia ontology prefix
+@prefix dbop: <http://dbpedia.org/ontology/PopulatedPlace/> .   # DBpedia PopulatedPlace sub-ontology prefix
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .         # RDF Schema (RDFS) ontology prefix
+@prefix owl: <http://www.w3.org/2002/07/owl#> .                 # Web Ontology Language (OWL) prefix
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .              # W3C datatypes ontology prefix
+@prefix rml: <http://semweb.mmlab.be/ns/rml#> .                 # RML ontology prefix
+@prefix ql: <http://semweb.mmlab.be/ns/ql#> .                   # RML-related ontology prefix
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .    # RDF ontology prefix
+@prefix gn: <http://geonames.org/> .                            # Geonames namespace prefix
+@prefix wb: <http://worldbank.org/> .                           # Worldbank namespace prefix
+@prefix purl: <http://purl.obolibrary.org/obo/> .               # Geographical entities ontology prefix
+@prefix wikidata: <https://www.wikidata.org/wiki/> .            # Wikidata ontology prefix
+@prefix wikidatap: <https://www.wikidata.org/wiki/Property:> .  # Wikidata sub-ontology prefix
+@prefix schema: <https://schema.org/> .                         # Schema.org ontology prefix
+@base <http://geonames.org/> .
+
+
+
+
+# Generates GDP entries yearly for each country from WorldBank data
+<TriplesMapGdpEntries> 
+  a rr:TriplesMap;
+
+  # Define the data source (file location)
+  rml:logicalSource [
+    rml:source "dataset-worldbank-gdp-full.xml";
+    rml:referenceFormulation ql:XPath ;
+    rml:iterator "/Root/data/record"
+  ];
+
+  # Generate a URI for each GDP yearly entry, for each country
+  rr:subjectMap [ rr:template "http://worldbank.org/country/{country/@key}/gdp/{year}" ;
+    rr:class wb:GdpEntry ];
+
+  # Add the country label to the GDP entry
+  rr:predicateObjectMap [ 
+    rr:predicate dbo:country ;
+    rr:objectMap [ rr:template "http://worldbank.org/country/{country/@key}" ]
+  ] ;
+
+  # Add the year to the GDP entry
+  rr:predicateObjectMap [ 
+    rr:predicate timeline:term_atYear ;
+    rr:objectMap [ rml:reference "year" ; rr:datatype xsd:gYear ]
+  ] ;
+
+  # Add the GDP value for each GDPEntry
+  rr:predicateObjectMap [ 
+    rr:predicate dbo:grossDomesticProduct ;
+    rr:objectMap [ rml:reference "value" ; rr:datatype xsd:double ]
+  ] .
+
+# Generates triples to specify the type of the country entities
+<TriplesMapCountryTypes> 
+  a rr:TriplesMap;
+
+  # Define the data source (file location)
+  rml:logicalSource [
+    rml:source "dataset-worldbank-gdp-full.xml";
+    rml:referenceFormulation ql:XPath ;
+    rml:iterator "/Root/data/record"
+  ];
+
+  # Define the subject of the generated statements - worldbank countries
+  rr:subjectMap [ rr:template "http://worldbank.org/country/{country/@key}" ;
+    rr:class wikidata:Q6256 ] ;
+
+  # Add the human-readable labels of each worldbank country
+  rr:predicateObjectMap [
+    rr:predicate rdfs:label ;
+    rr:objectMap [ rml:reference "country" ; rr:datatype xsd:string ]
+  ] .
+
+
+
+
+
+
+
+
+
+<TriplesMapGeonames>
+  a rr:TriplesMap;
+
+  # Define the data source (file location)
+  rml:logicalSource [
+    rml:source "dataset-geonames-countryInfo.csv";
+    rml:referenceFormulation ql:CSV
+  ];
+
+  # Define the subject of the generated triples
+  rr:subjectMap [ rr:template "http://geonames.org/country/{ISO}" ;
+    rr:class wikidata:Q6256 ];
+
+  # Predicate-object map 1: for each country subject, add triples with the predicate being rdfs:label
+  # and the object being the human-readable country name from the data source
+  rr:predicateObjectMap [ 
+    rr:predicate rdfs:label ;
+    rr:objectMap [ rml:reference "Country" ; rr:datatype xsd:string ]
+  ] ;
+
+  # Predicate-object map 2: for each country subject, add triples with the predicate being wikidata:P1082
+  # and the object being the population of that country with assigned datatype - xsd:integer
+  rr:predicateObjectMap [ 
+    rr:predicate wikidatap:P1082 ;
+    rr:objectMap [ rml:reference "Population" ; rr:datatype xsd:integer ]
+  ] ;
+
+  # Predicate-object map 3: for each country subject, add triples with the predicate being dbo:continent
+  # and the object being the continent in which this country resides.
+  rr:predicateObjectMap [ 
+    rr:predicate dbo:continent ;
+    rr:objectMap [ rr:template "http://geonames.org/continent/{Continent}" ]
+  ] ;
+
+
+  # Predicate-object map 4: for each country subject, add triples with the predicate being dbop:area
+  # and the object being the area in sq km of the country.
+  rr:predicateObjectMap [ 
+    rr:predicate dbop:area ;
+    rr:objectMap [ rml:reference "Area" ; rr:datatype xsd:integer ]
+  ] ;
+
+  # Predicate-object map 5: for each country subject, add triples with the predicate being schema:currency
+  # and the object being the currency code of the country.
+  rr:predicateObjectMap [ 
+    rr:predicate schema:currency ;
+    rr:objectMap [ rml:reference "CurrencyCode" ; rr:datatype xsd:string ]
+  ] .
+
+# Generates triples to specify the type for continent instances
+<TriplesMapContinentTypes> 
+  a rr:TriplesMap;
+
+  # Define the data source (file location)
+  rml:logicalSource [
+    rml:source "dataset-geonames-countryInfo.csv";
+    rml:referenceFormulation ql:CSV
+  ];
+
+  # Subject map: assigns each continent entity an ontology type
+  # In this case we have chosen "Continent" from the GEO Entities ontology (purl:GEO_000000374)
+  # We have chosen this ontology term because:
+  # 1. It accurately represents the semantic concept we intend (i.e. a contiguous landmass also known as a continent)
+  # 2. The URI of the type is an HTTP URI and is resolvable to a page that provides more information about the type
+  # 3. It occurs in the GEO entities ontology which is specialised for this domain of geographical information
+  # 4. The GEO entities ontology has a homepage with more information about its development, maintenance and downloads:
+  # https://github.com/ufbmi/geographical-entity-ontology/wiki
+  # 5. There is evidence that the ontology is widely used and actively maintained in the community because
+  # it appears in multiple reputable ontology repositories: https://www.ebi.ac.uk/ols/ontologies/geo ;
+  # https://bioportal.bioontology.org/ontologies/GEO/?p=summary ; http://www.obofoundry.org/ontology/geo.html ; 
+  rr:subjectMap [ rr:template "http://geonames.org/continent/{Continent}" ;
+    rr:class purl:GEO_000000374 ] .
+
+# Generates triples to specify the type for city instances
+<TriplesMapCityTypes> 
+  a rr:TriplesMap;
+
+  # Define the data source (file location)
+  rml:logicalSource [
+    rml:source "dataset-geonames-countryInfo.csv";
+    rml:referenceFormulation ql:CSV
+  ];
+
+  # Subject map: assigns each (capital) city entity an ontology type City
+  # In this case we have chosen "city" from the DBpedia ontology
+  rr:subjectMap [ rr:template "http://geonames.org/{ISO}/capital-city" ;
+    rr:class dbo:City ] ;
+
+  # Predicate-object map 1: for each capital city subject, add triples with the predicate being wikidatap:P1376
+  # and the object being the country for which this city is the capital.
+  rr:predicateObjectMap [ 
+    rr:predicate wikidatap:P1376 ;
+    rr:objectMap [ rr:template "http://geonames.org/country/{ISO}" ]
+  ] ;
+
+  # Predicate-object map 2: for each country subject, add triples with the predicate being wikidatap:P1376
+  # and the object being the country for which this city is the capital.
+  rr:predicateObjectMap [ 
+    rr:predicate rdfs:label ;
+    rr:objectMap [ rml:reference "Capital" ; rr:datatype xsd:string ]
+  ] .
